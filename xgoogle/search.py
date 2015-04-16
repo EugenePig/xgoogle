@@ -250,7 +250,10 @@ class GoogleSearch(object):
         title = ''.join(title_a.findAll(text=True))
         title = self._html_unescape(title)
         url = title_a['href']
-        match = re.match(r'/url\?q=(http[^&]+)&', url)
+        match = re.match(r'/url\?q=((http|ftp|https)[^&]+)&', url)
+        if match:
+            url = urllib.unquote(match.group(1))
+        match = re.match(r'/interstitial\?url=((http|ftp|https)[^&]+)&', url)
         if match:
             url = urllib.unquote(match.group(1))
         return title, url
@@ -258,6 +261,10 @@ class GoogleSearch(object):
     def _extract_description(self, result):
         desc_div = result.find('div', {'class': re.compile(r'\bs\b')})
         if not desc_div:
+            self._maybe_raise(ParseError, "Description tag in Google search result was not found", result)
+            return None
+        desc_span = desc_div.find('span', {'class': 'st'})
+        if not desc_span:
             self._maybe_raise(ParseError, "Description tag in Google search result was not found", result)
             return None
 
@@ -275,8 +282,8 @@ class GoogleSearch(object):
                 except AttributeError:
                     desc_strs.append(t)
 
-        looper(desc_div)
-        looper(desc_div.find('wbr')) # BeautifulSoup does not self-close <wbr>
+        looper(desc_span)
+        looper(desc_span.find('wbr')) # BeautifulSoup does not self-close <wbr>
 
         desc = ''.join(s for s in desc_strs if s)
         return self._html_unescape(desc)
